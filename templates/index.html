@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GestureVolume - Hand Gesture Control</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GestureVolume - Hand Gesture Control</h1>
+        </header>
+
+        <div class="content">
+            <!-- Left: Video Feed -->
+            <div class="video-section">
+                <img id="video-feed" src="{{ url_for('video_feed') }}" alt="Video Feed">
+            </div>
+
+            <!-- Right: Controls and Status -->
+            <div class="controls-section">
+                <!-- Camera Controls -->
+                <div class="panel">
+                    <h2>Camera Controls</h2>
+                    <div class="button-group">
+                        <button id="start-btn" class="btn btn-start" onclick="startCamera()">
+                            ▶ Start
+                        </button>
+                        <button id="stop-btn" class="btn btn-stop" onclick="stopCamera()">
+                            ⏹ Stop
+                        </button>
+                    </div>
+                </div>
+
+                <!-- System Status -->
+                <div class="panel">
+                    <h2>System Status</h2>
+                    
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-label">CAMERA</div>
+                            <div id="camera-status" class="status-value status-inactive">
+                                <span class="status-dot"></span>
+                                Inactive
+                            </div>
+                        </div>
+
+                        <div class="status-item">
+                            <div class="status-label">GESTURE STATUS</div>
+                            <div id="gesture-status" class="status-value status-inactive">
+                                <span class="status-dot"></span>
+                                Waiting
+                            </div>
+                        </div>
+
+                        <div class="status-item">
+                            <div class="status-label">GESTURE TYPE</div>
+                            <div id="gesture-type" class="status-value status-neutral">
+                                None
+                            </div>
+                        </div>
+
+                        <div class="status-item">
+                            <div class="status-label">GESTURE QUALITY</div>
+                            <div id="gesture-quality" class="status-value status-good">
+                                --
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Volume Info -->
+                <div class="panel">
+                    <h2>Volume Control</h2>
+                    <div class="volume-display">
+                        <div class="volume-text">
+                            <span id="volume-level">50</span>%
+                        </div>
+                        <div class="volume-bar-container">
+                            <div id="volume-bar" class="volume-bar" style="width: 50%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions -->
+                <div class="panel instructions">
+                    <h3>Gesture Guide</h3>
+                    <ul>
+                        <li><strong>Pinch (0-40px):</strong> Volume Down</li>
+                        <li><strong>Close (40-80px):</strong> Hold</li>
+                        <li><strong>Medium (80-130px):</strong> Neutral</li>
+                        <li><strong>Far (130-200px):</strong> Volume Up</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update status every 200ms
+        setInterval(updateStatus, 200);
+
+        function updateStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    // Camera status
+                    const cameraStatus = document.getElementById('camera-status');
+                    if (data.camera_active) {
+                        cameraStatus.innerHTML = '<span class="status-dot"></span> Active';
+                        cameraStatus.className = 'status-value status-active';
+                    } else {
+                        cameraStatus.innerHTML = '<span class="status-dot"></span> Inactive';
+                        cameraStatus.className = 'status-value status-inactive';
+                    }
+
+                    // Gesture status
+                    const gestureStatus = document.getElementById('gesture-status');
+                    if (data.hand_detected) {
+                        gestureStatus.innerHTML = '<span class="status-dot"></span> Detecting';
+                        gestureStatus.className = 'status-value status-detecting';
+                    } else if (data.camera_active) {
+                        gestureStatus.innerHTML = '<span class="status-dot"></span> No Hand';
+                        gestureStatus.className = 'status-value status-warning';
+                    } else {
+                        gestureStatus.innerHTML = '<span class="status-dot"></span> Waiting';
+                        gestureStatus.className = 'status-value status-inactive';
+                    }
+
+                    // Gesture type
+                    const gestureType = document.getElementById('gesture-type');
+                    gestureType.textContent = data.gesture;
+                    if (data.gesture === 'Volume Up') {
+                        gestureType.className = 'status-value status-good';
+                    } else if (data.gesture === 'Volume Down') {
+                        gestureType.className = 'status-value status-warning';
+                    } else {
+                        gestureType.className = 'status-value status-neutral';
+                    }
+
+                    // Gesture quality
+                    const gestureQuality = document.getElementById('gesture-quality');
+                    gestureQuality.textContent = data.quality;
+                    if (data.quality === 'Excellent') {
+                        gestureQuality.className = 'status-value status-excellent';
+                    } else if (data.quality === 'Good') {
+                        gestureQuality.className = 'status-value status-good';
+                    } else {
+                        gestureQuality.className = 'status-value status-neutral';
+                    }
+
+                    // Volume
+                    const volumeLevel = document.getElementById('volume-level');
+                    const volumeBar = document.getElementById('volume-bar');
+                    volumeLevel.textContent = data.volume;
+                    volumeBar.style.width = data.volume + '%';
+                })
+                .catch(error => console.error('Error fetching status:', error));
+        }
+
+        function startCamera() {
+            fetch('/start_camera', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Camera started');
+                    document.getElementById('video-feed').style.display = 'block';
+                })
+                .catch(error => console.error('Error starting camera:', error));
+        }
+
+        function stopCamera() {
+            fetch('/stop_camera', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Camera stopped');
+                })
+                .catch(error => console.error('Error stopping camera:', error));
+        }
+    </script>
+</body>
+</html>
